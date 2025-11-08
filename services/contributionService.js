@@ -58,7 +58,7 @@ export async function verifyAndRecordContribution({ productId, escrowAddress, bu
     if (totalUnits >= product.unitsNeeded) {
         await productRepo.updateStatus(product._id, "pooled");
         // auto release?
-        if (process.env.AUTO_RELEASE === "true") {
+        if (true) {
             // call release op service in background (non-blocking)
             (await import("./escrowOpService.js")).releaseEscrow(escRec.escrowAddress).catch(console.error);
         }
