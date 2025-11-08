@@ -48,3 +48,58 @@ export async function getUSDCBalanceOf(address) {
     const bal = await usdc.balanceOf(address);
     return bal.toString(); // smallest units
 }
+
+
+// Function to verify escrow contract on ArcScan immediately
+async function verifyEscrowOnArcScan(escrowAddress, seller, unitPrice, unitsNeeded, dueTs) {
+    try {
+        const abiCoder = new ethers.AbiCoder();
+        const encodedArgs = abiCoder.encode(
+            ["address", "address", "uint256", "uint256", "uint256", "address", "address"],
+            [seller, process.env.USDC_ADDRESS, BigInt(unitPrice), unitsNeeded, dueTs, operator.address, operator.address]
+        );
+
+        const sourceCode = fs.readFileSync(escrowPath, "utf8");
+
+        const response = await axios.post("https://api-testnet.arcscan.app/api", null, {
+            params: {
+                apikey: "empty",
+                module: "contract",
+                action: "verifysourcecode",
+                contractaddress: escrowAddress,
+                sourceCode,
+                codeformat: "solidity-hardhat",
+                contractname: "Escrow",
+                compilerversion: "v0.8.20+commit.7dd6d404",
+                optimizationUsed: 1,
+                runs: 200,
+                constructorArguements: encodedArgs.replace(/^0x/, "")
+            }
+        });
+
+        const guid = response.data.result;
+        console.log("Verification submitted, GUID:", guid);
+
+        // Poll for verification status
+        let status = "0";
+        while (status === "0") {
+            await new Promise(r => setTimeout(r, 5000));
+            const statusResp = await axios.get("https://api-testnet.arcscan.app/api", {
+                params: {
+                    apikey: process.env.ARCSCAN_API_KEY,
+                    module: "contract",
+                    action: "checkverifystatus",
+                    guid
+                }
+            });
+            status = statusResp.data.status;
+            console.log("Verification status:", statusResp.data);
+        }
+
+        if (status === "1") console.log("✅ Escrow verified!");
+        else console.log("❌ Verification failed:", statusResp.data.result);
+
+    } catch (err) {
+        console.error("Error verifying escrow:", err.response?.data || err.message);
+    }
+}

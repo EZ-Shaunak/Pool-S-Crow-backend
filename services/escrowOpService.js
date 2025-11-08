@@ -4,7 +4,7 @@ import * as productRepo from "../repos/productRepo.js";
 
 /** Operator releases all funds to seller (calls releaseToSeller) */
 export async function releaseEscrow(escrowAddress) {
-    const receipt = await blockchain.getEscrowContract(escrowAddress, blockchain.operator).releaseToSeller();
+    const receipt = await blockchain.getEscrowContract(escrowAddress, process.env.OPERATOR_ADDR).releaseToSeller();
     // update DB
     const rec = await escrowRepo.findByEscrow(escrowAddress);
     if (rec) await escrowRepo.update(rec._id, { fundsReleased: true });
